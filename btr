@@ -1,0 +1,82 @@
+#!/bin/bash
+
+currentScript=$(readlink -f $0)
+currentDir=$(dirname $currentScript)
+commandDir="$currentDir/commands"
+
+
+printUsage() {
+    echo "Usage: $0 <command> <action> [arguments]"
+    echo "Commands:"
+    for dir in $(find $commandDir/* -maxdepth 0 -type d); do
+        echo "  $(basename $dir)"
+    done
+}
+
+printSubCommandUsage() {
+    command=$1
+    cmd=$(basename $1)
+    echo "Usage: $0 $cmd <subcommand/action> [arguments]"
+
+    actions=$(find $command/* -maxdepth 0 -type f -executable 2>/dev/null)
+    commands=$(find $command/* -maxdepth 0 -type d -executable 2>/dev/null)
+
+    if [[ -z $actions && -z $commands ]]; then
+        echo "No action or subcommand found!"
+        exit 1
+    fi
+
+    if [[ -n $actions ]]; then
+        echo "Actions:"
+        for f in $actions; do
+            echo "  $(basename $f)"
+        done
+    fi
+
+    if [[ -n $commands ]]; then
+        echo "Sub commands:"
+        for f in $commands; do
+            echo "  $(basename $f)"
+        done
+    fi
+}
+
+if [ "$#" == "0" ]; then
+    printUsage
+    exit 1
+fi
+
+command="$commandDir/$1"
+if [[ ! -d $command ]]; then
+    echo "ERROR: No command called $1!"
+    printUsage
+    exit 1
+fi
+
+while (("$#")); do
+    newCommand="$command/$1"
+
+    if [[ -z $action ]]; then
+        if [[ -d $newCommand ]]; then
+            command=$newCommand
+            continue
+        fi
+
+        if [[ -f $newCommand && -x $newCommand ]]; then
+            action=$1
+        fi
+    else
+        args="$args $1"
+    fi
+
+    shift
+done
+
+if [[ -z $action ]]; then
+    printSubCommandUsage $command
+    exit 1
+fi
+
+cmd="$command/$action $args"
+$cmd
+
